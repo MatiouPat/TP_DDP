@@ -23,25 +23,41 @@ enum Orientation
 class Square
 {
 public:
-    Square(int _cost, int _heuristic, SquareState _state)
+    Square(int _x, int _y, int _cost, int _heuristic, SquareState _state)
     {
+        x = _x;
+        y = _y;
         cost = _cost;
         heuristic = _heuristic;
         state = _state;
     }
-    SquareState getState()
+    int getX()
     {
-        return state;
+        return x;
+    }
+    int getY()
+    {
+        return y;
     }
     int getHeuristic()
     {
         return heuristic;
     }
+    void setHeuristic(int _heuristic)
+    {
+        heuristic = _heuristic;
+    }
     int getCost()
     {
         return cost;
     }
+    SquareState getState()
+    {
+        return state;
+    }
 private:
+    int x;
+    int y;
     int cost;
     int heuristic;
     SquareState state;
@@ -54,14 +70,21 @@ public:
     {
         sizeX = _sizeX;
         sizeY = _sizeY;
-        board = std::deque<std::deque<Square>>(_sizeY, std::deque<Square>(_sizeX, Square{ 0, 0, SquareState::UNKNOWN }));
+        board = std::deque<std::deque<std::shared_ptr<Square>>>(_sizeY, std::deque<std::shared_ptr<Square>>(_sizeX));
+        for (int i = 0; i < board.size(); i++)
+        {
+            for (int j = 0; j < board[i].size(); j++)
+            {
+                board[i][j] = std::shared_ptr<Square>(new Square(i, j, 0, 0, SquareState::TRAVERSABLE));
+            }
+        }
     }
     /**
     * 0-Left : 0001 / 1-Top : 0010 / 2-Right : 0100 / 3-Bottom : 1000
     */
     void addChessboardCase(Orientation orientation)
     {
-        switch (orientation)
+        /*switch (orientation)
         {
         case WEST:
         {
@@ -137,7 +160,7 @@ public:
             sizeY++;
             break;
         }
-        }
+        }*/
     }
     /**
     * Print
@@ -149,7 +172,7 @@ public:
             for (auto& square : row)
             {
                 char symbol;
-                switch (square.getState())
+                switch (square->getState())
                 {
                 case UNKNOWN:
                     symbol = '?';
@@ -161,7 +184,7 @@ public:
                     symbol = 'x';
                     break;
                 }
-                std::cout << symbol << square.getHeuristic() << ' ';
+                std::cout << symbol << square->getHeuristic() << " ";
             }
             std::cout << '\n';
         }
@@ -169,10 +192,49 @@ public:
     }
     void searchShortestPath(int startX, int startY, int endX, int endY)
     {
-        board[startX][startY] = Square{ 0, 0,  SquareState::TRAVERSABLE };
-        board[endX][endY] = Square{ 0, 0,  SquareState::TRAVERSABLE };
-        board[2][1] = Square{ 0, 0,  SquareState::UNTRAVERSABLE };
-        board[2][2] = Square{ 0, 0,  SquareState::UNTRAVERSABLE };
+        board[startX][startY] = std::shared_ptr<Square>( new Square{ startX, startY, 0, 0, SquareState::TRAVERSABLE });
+        board[endX][endY] = std::shared_ptr<Square>(new Square{ endX, endY, 0, 0,  SquareState::TRAVERSABLE });
+        board[2][1] = std::shared_ptr<Square>(new Square{ 2, 1, 0, 0,  SquareState::UNTRAVERSABLE });
+        board[2][2] = std::shared_ptr<Square>(new Square{ 2, 2, 0, 0,  SquareState::UNTRAVERSABLE });
+        std::shared_ptr<Square> cursor = board[startX][startY];
+
+
+        for (int x = 0; x < 6; x++)
+        {
+            /*Calcul des heuristiques des noeuds voisins*/
+            for (int i = -1; i < 2; i = i++)
+            {
+                for (int j = -1; j < 2; j = j++)
+                {
+                    if (cursor->getX() + i < sizeX && cursor->getY() + j < sizeY)
+                    {
+                        std::shared_ptr<Square> target = board[cursor->getX() + i][cursor->getY() + j];
+                        //std::cout << calculHeuristic(cursor, target, board[endX][endY]) << std::endl;
+                        target->setHeuristic(calculHeuristic(cursor, target, board[endX][endY]));
+                    }
+                }
+            }
+
+            /*Déplacement du noeud courant vers le noeud avec le cout le plus faible*/
+            int localCost = cursor->getHeuristic();
+            std::shared_ptr<Square> futureNode = cursor;
+            for (int i = -1; i < 2; i = i++)
+            {
+                for (int j = -1; j < 2; j = j++)
+                {
+                    if (cursor->getX() + i < sizeX && cursor->getY() + j < sizeY)
+                    {
+                        if (board[cursor->getX() + i][cursor->getY() + j]->getHeuristic() < localCost && board[cursor->getX() + i][cursor->getY() + j]->getState() != SquareState::UNTRAVERSABLE)
+                        {
+                            localCost = board[cursor->getX() + i][cursor->getY() + j]->getHeuristic();
+                            futureNode = board[cursor->getX() + i][cursor->getY() + j];
+                        }
+                    }
+                }
+            }
+            cursor = futureNode;
+            printChessboard();
+        }
     }
     /*
     * On compare la distance entre s1 et dest et s2 et dest
@@ -180,15 +242,24 @@ public:
     * Si s1 est plus près que s2 -> 0
     * Si s1 est plus près que s2 -> 1
     */
-    int calculHeuristic(int s1X, int s1Y, int s2X, int s2Y, int destX, int destY)
+    int calculHeuristic(std::shared_ptr<Square> s1, std::shared_ptr<Square> s2, std::shared_ptr<Square> dest)
     {
-        if ((destX - s1X < destX - s2X) || (destY - s1Y < destY - s2Y))
+        //std::cout << dest->getX() - s1->getX() << ' ' << dest->getX() - s2->getX() << ' ' << dest->getY() - s1->getY() << ' ' << dest->getY() - s2->getY() << "\n" << std::endl;
+        if ((dest->getX() - s1->getX() < dest->getX() - s2->getX()) && (dest->getY() - s1->getY() < dest->getY() - s2->getY()))
+        {
+            return 2;
+        }
+        else if ((dest->getX() - s1->getX() < dest->getX() - s2->getX()) || (dest->getY() - s1->getY() < dest->getY() - s2->getY()))
         {
             return 1;
         }
-        else if ((destX - s1X == destX - s2X) && (destY - s1Y == destY - s2Y))
+        else if ((dest->getX() - s1->getX() == dest->getX() - s2->getX()) && (dest->getY() - s1->getY() == dest->getY() - s2->getY()))
         {
             return 0;
+        }
+        else if((dest->getX() - s1->getX() > dest->getX() - s2->getX()) && (dest->getY() - s1->getY() > dest->getY() - s2->getY()))
+        {
+            return -2;
         }
         else
         {
@@ -196,11 +267,11 @@ public:
         }
     }
 
-    std::shared_ptr<std::deque<Square>> neighbours(int squareX, int squareY)
+    std::shared_ptr<std::deque<std::shared_ptr<Square>>> neighbours(int squareX, int squareY)
     {
-        ptrNeighboursList = std::shared_ptr<std::deque<Square>>;
+        std::shared_ptr<std::deque<std::shared_ptr<Square>>> ptrNeighboursList;
         
-        switch (squareX)
+        /*switch (squareX)
         {
         case 0:
             addChessboardCase(NORTH);
@@ -210,7 +281,7 @@ public:
             break;
         }
 
-        switch(squareY)
+        switch (squareY)
         {
         case 0:
             addChessboardCase(WEST);
@@ -218,17 +289,18 @@ public:
         case sizeY:
             addChessboardCase(EAST);
             break;
-        }
+        }*/
 
-        (*ptrNeighboursList).push_front(bord[squareX - 1][squareY - 1]);
-        (*ptrNeighboursList).push_front(bord[squareX-1][squareY ]);
-        (*ptrNeighboursList).push_front(bord[squareX - 1][squareY+ 1]);
-        (*ptrNeighboursList).push_front(bord[squareX ][squareY - 1]);
-        (*ptrNeighboursList).push_front(bord[squareX ][squareY]);
-        (*ptrNeighboursList).push_front(bord[squareX ][squareY + 1]);
-        (*ptrNeighboursList).push_front(bord[squareX + 1][squareY - 1]);
-        (*ptrNeighboursList).push_front(bord[squareX + 1][squareY]);
-        (*ptrNeighboursList).push_front(bord[squareX + 1][squareY + 1]);
+        for (int i = -1; i < 2; i = i++)
+        {
+            for (int j = -1; j < 2; j = j++)
+            {
+                if (i != 0 && j != 0)
+                {
+                    (*ptrNeighboursList).push_back(board[squareX + i][squareY - j]);
+                }
+            }
+        }
 
         return ptrNeighboursList;
     }
@@ -236,12 +308,12 @@ public:
 private:
     int sizeX;
     int sizeY;
-    std::deque<std::deque<Square>> board;
+   std::deque<std::deque<std::shared_ptr<Square>>> board;
 };
 
 int main()
 {
     std::shared_ptr<Board> board = std::shared_ptr<Board>(new Board(5, 5));
-    //board->printChessboard();
+    board->printChessboard();
     board->searchShortestPath(1, 1, 4, 4);
 }
