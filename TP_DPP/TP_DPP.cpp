@@ -199,7 +199,7 @@ public:
         std::shared_ptr<Square> cursor = board[startX][startY];
 
 
-        for (int x = 0; x < 6; x++)
+        while(cursor->getX() != board[endX][endY]->getX() || cursor->getY() != board[endX][endY]->getY())
         {
             /*Calcul des heuristiques des noeuds voisins*/
             for (int i = -1; i < 2; i = i++)
@@ -215,7 +215,7 @@ public:
                 }
             }
 
-            /*Déplacement du noeud courant vers le noeud avec le cout le plus faible*/
+            /*Recherche du noeud voisin avec le cout le plus faible*/
             int localCost = cursor->getHeuristic();
             std::shared_ptr<Square> futureNode = cursor;
             for (int i = -1; i < 2; i = i++)
@@ -232,8 +232,8 @@ public:
                     }
                 }
             }
+            /*Déplacement vers le noeud avec le cout le plus faible*/
             cursor = futureNode;
-            printChessboard();
         }
     }
     /*
