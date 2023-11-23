@@ -20,6 +20,33 @@ enum Orientation
     SOUTH_EAST = 12
 };
 
+class Square
+{
+public:
+    Square(int _cost, int _heuristic, SquareState _state)
+    {
+        cost = _cost;
+        heuristic = _heuristic;
+        state = _state;
+    }
+    SquareState getState()
+    {
+        return state;
+    }
+    int getHeuristic()
+    {
+        return heuristic;
+    }
+    int getCost()
+    {
+        return cost;
+    }
+private:
+    int cost;
+    int heuristic;
+    SquareState state;
+};
+
 class Board
 {
 public:
@@ -27,8 +54,7 @@ public:
     {
         sizeX = _sizeX;
         sizeY = _sizeY;
-        board = std::deque<std::deque<SquareState>>(_sizeY, std::deque<SquareState>(_sizeX, SquareState::UNKNOWN));
-        board[0][0] = SquareState::TRAVERSABLE;
+        board = std::deque<std::deque<Square>>(_sizeY, std::deque<Square>(_sizeX, Square{ 0, 0, SquareState::UNKNOWN }));
     }
     /**
     * 0-Left : 0001 / 1-Top : 0010 / 2-Right : 0100 / 3-Bottom : 1000
@@ -40,14 +66,14 @@ public:
         case WEST:
         {
             for (auto& row : board) {
-                row.push_front(SquareState::UNKNOWN);
+                row.push_front(Square{ 0, 0, SquareState::UNKNOWN });
             }
             sizeX++;
             break;
         }
         case NORTH:
         {
-            std::deque<SquareState> newRow(sizeX, SquareState::UNKNOWN);
+            std::deque<Square> newRow(sizeX, Square{ 0, 0, SquareState::UNKNOWN });
             board.push_front(newRow);
             sizeY++;
             break;
@@ -55,14 +81,14 @@ public:
         case EAST:
         {
             for (auto& row : board) {
-                row.push_back(SquareState::UNKNOWN);
+                row.push_back(Square{ 0, 0, SquareState::UNKNOWN });
             }
             sizeX++;
             break;
         }
         case SOUTH:
         {
-            std::deque<SquareState> newRow(sizeX, SquareState::UNKNOWN);
+            std::deque<Square> newRow(sizeX, Square{ 0, 0, SquareState::UNKNOWN });
             board.push_front(newRow);
             sizeY++;
             break;
@@ -70,10 +96,10 @@ public:
         case NORTH_WEST:
         {
             for (auto& row : board) {
-                row.push_front(SquareState::UNKNOWN);
+                row.push_front(Square{ 0, 0, SquareState::UNKNOWN });
             }
             sizeX++;
-            std::deque<SquareState> newRow(sizeX, SquareState::UNKNOWN);
+            std::deque<Square> newRow(sizeX, Square{ 0, 0, SquareState::UNKNOWN });
             board.push_front(newRow);
             sizeY++;
             break;
@@ -81,10 +107,10 @@ public:
         case NORTH_EAST:
         {
             for (auto& row : board) {
-                row.push_back(SquareState::UNKNOWN);
+                row.push_back(Square{ 0, 0, SquareState::UNKNOWN });
             }
             sizeX++;
-            std::deque<SquareState> newRow(sizeX, SquareState::UNKNOWN);
+            std::deque<Square> newRow(sizeX, Square{ 0, 0, SquareState::UNKNOWN });
             board.push_front(newRow);
             sizeY++;
             break;
@@ -92,10 +118,10 @@ public:
         case SOUTH_WEST:
         {
             for (auto& row : board) {
-                row.push_front(SquareState::UNKNOWN);
+                row.push_front(Square{ 0, 0, SquareState::UNKNOWN });
             }
             sizeX++;
-            std::deque<SquareState> newRow(sizeX, SquareState::UNKNOWN);
+            std::deque<Square> newRow(sizeX, Square{ 0, 0, SquareState::UNKNOWN });
             board.push_front(newRow);
             sizeY++;
             break;
@@ -103,10 +129,10 @@ public:
         case SOUTH_EAST:
         {
             for (auto& row : board) {
-                row.push_back(SquareState::UNKNOWN);
+                row.push_back(Square{ 0, 0, SquareState::UNKNOWN });
             }
             sizeX++;
-            std::deque<SquareState> newRow(sizeX, SquareState::UNKNOWN);
+            std::deque<Square> newRow(sizeX, Square{ 0, 0, SquareState::UNKNOWN });
             board.push_front(newRow);
             sizeY++;
             break;
@@ -118,12 +144,12 @@ public:
     */
     void printChessboard()
     {
-        for (const auto& row : board)
+        for (auto& row : board)
         {
-            for (const auto& square : row)
+            for (auto& square : row)
             {
                 char symbol;
-                switch (square)
+                switch (square.getState())
                 {
                 case UNKNOWN:
                     symbol = '?';
@@ -135,22 +161,49 @@ public:
                     symbol = 'x';
                     break;
                 }
-                std::cout << symbol << ' ';
+                std::cout << symbol << square.getHeuristic() << ' ';
             }
             std::cout << '\n';
         }
         std::cout << '\n';
     }
+    void searchShortestPath(int startX, int startY, int endX, int endY)
+    {
+        board[startX][startY] = Square{ 0, 0,  SquareState::TRAVERSABLE };
+        board[endX][endY] = Square{ 0, 0,  SquareState::TRAVERSABLE };
+        board[2][1] = Square{ 0, 0,  SquareState::UNTRAVERSABLE };
+        board[2][2] = Square{ 0, 0,  SquareState::UNTRAVERSABLE };
+    }
+    /*
+    * On compare la distance entre s1 et dest et s2 et dest
+    * Si s1 est plus près que s2 -> 1
+    * Si s1 est plus près que s2 -> 0
+    * Si s1 est plus près que s2 -> 1
+    */
+    int calculHeuristic(int s1X, int s1Y, int s2X, int s2Y, int destX, int destY)
+    {
+        if ((destX - s1X < destX - s2X) || (destY - s1Y < destY - s2Y))
+        {
+            return 1;
+        }
+        else if ((destX - s1X == destX - s2X) && (destY - s1Y == destY - s2Y))
+        {
+            return 0;
+        }
+        else
+        {
+            return -1;
+        }
+    }
 private:
     int sizeX;
     int sizeY;
-    std::deque<std::deque<SquareState>> board;
+    std::deque<std::deque<Square>> board;
 };
 
 int main()
 {
-    std::shared_ptr<Board> board = std::shared_ptr<Board>(new Board(10, 10));
-    board->printChessboard();
-    board->addChessboardCase(Orientation::NORTH_WEST);
-    board->printChessboard();
+    std::shared_ptr<Board> board = std::shared_ptr<Board>(new Board(5, 5));
+    //board->printChessboard();
+    board->searchShortestPath(1, 1, 4, 4);
 }
