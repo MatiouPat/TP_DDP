@@ -195,6 +195,44 @@ public:
             return -1;
         }
     }
+
+    std::shared_ptr<std::deque<Square>> neighbours(int squareX, int squareY)
+    {
+        ptrNeighboursList = std::shared_ptr<std::deque<Square>>;
+        
+        switch (squareX)
+        {
+        case 0:
+            addChessboardCase(NORTH);
+            break;
+        case sizeX:
+            addChessboardCase(SOUTH);
+            break;
+        }
+
+        switch(squareY)
+        {
+        case 0:
+            addChessboardCase(WEST);
+            break;
+        case sizeY:
+            addChessboardCase(EAST);
+            break;
+        }
+
+        (*ptrNeighboursList).push_front(bord[squareX - 1][squareY - 1]);
+        (*ptrNeighboursList).push_front(bord[squareX-1][squareY ]);
+        (*ptrNeighboursList).push_front(bord[squareX - 1][squareY+ 1]);
+        (*ptrNeighboursList).push_front(bord[squareX ][squareY - 1]);
+        (*ptrNeighboursList).push_front(bord[squareX ][squareY]);
+        (*ptrNeighboursList).push_front(bord[squareX ][squareY + 1]);
+        (*ptrNeighboursList).push_front(bord[squareX + 1][squareY - 1]);
+        (*ptrNeighboursList).push_front(bord[squareX + 1][squareY]);
+        (*ptrNeighboursList).push_front(bord[squareX + 1][squareY + 1]);
+
+        return ptrNeighboursList;
+    }
+
 private:
     int sizeX;
     int sizeY;
