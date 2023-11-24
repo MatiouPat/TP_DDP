@@ -196,7 +196,8 @@ public:
         }
         std::cout << '\n';
     }
-    void searchShortestPath(int startX, int startY, int endX, int endY)
+
+    std::deque < std::shared_ptr<Square>> searchShortestPath(int startX, int startY, int endX, int endY)
     {
         board[startX][startY] = std::shared_ptr<Square>( new Square{ startX, startY, 0, 0, SquareState::TRAVERSABLE });
         board[endX][endY] = std::shared_ptr<Square>(new Square{ endX, endY, sizeX + sizeY, sizeX + sizeY,  SquareState::TRAVERSABLE });
@@ -302,6 +303,35 @@ public:
             //Supprimer 
             printChessboard();
         }
+        // On refait le chemin pour le noter
+        std::deque < std::shared_ptr<Square>> path;
+        std::shared_ptr<Square> traveler = board[startX][startY];
+        path.push_back(traveler);
+
+        while (traveler->getX() != board[endX][endY]->getX() || traveler->getY() != board[endX][endY]->getY())
+        {
+            std::shared_ptr<std::deque<std::shared_ptr<Square>>> voisins = neighbours(traveler->getX(), traveler->getX());
+            std::shared_ptr<Square> nextStep;
+            float lowestCost = (*voisins)[0]->getCost();
+            int lowestHeuristic = (*voisins)[0]->getHeuristic();
+            nextStep =(*voisins)[0];
+            for (auto v : (*voisins))
+            {
+                float vCost = v->getCost();
+                int vHeuristic = v->getHeuristic();
+
+                if((vCost< lowestCost) || (vCost == lowestCost && vHeuristic < lowestHeuristic))
+                {
+                    nextStep = v;
+                    lowestCost = vCost;
+                    lowestHeuristic = vHeuristic;
+                }
+            }
+            path.push_back(nextStep);
+            traveler = nextStep;
+        }
+        path.push_back(board[endX][endY]);
+        return path;
     }
     /*
     * On compare la distance entre s1 et dest et s2 et dest
@@ -390,5 +420,16 @@ int main()
 {
     std::shared_ptr<Board> board = std::shared_ptr<Board>(new Board(5, 5));
     board->printChessboard();
-    board->searchShortestPath(1, 1, 4, 4);
+    int startX = 1;
+    int startY = 1;
+    int endX = 4;
+    int endY = 4;
+    std::deque<std::shared_ptr<Square>> cheminTest = board->searchShortestPath(startX, startY, endX, endY);
+    std::cout << "Chemin recommande pour aller de  (" << startX << "," << startY << ") a (" << endX << "," << endY << ") : \n";
+    for (auto i : cheminTest)
+    {
+        std::cout << "  ( " << i->getX() << " , " << i->getY() << " ) \n";
+    }
+    std::cout << " \n" << std::endl;
+   
 }
