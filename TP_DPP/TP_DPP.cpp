@@ -52,6 +52,10 @@ public:
     {
         return cost;
     }
+    void setCost(int _cost)
+    {
+        cost = _cost;
+    }
     SquareState getState()
     {
         return state;
@@ -77,7 +81,7 @@ public:
         {
             for (int j = 0; j < board[i].size(); j++)
             {
-                board[i][j] = std::shared_ptr<Square>(new Square(i, j, 0, 0, SquareState::TRAVERSABLE));
+                board[i][j] = std::shared_ptr<Square>(new Square(i, j, sizeX + sizeY, sizeX + sizeY, SquareState::TRAVERSABLE));
             }
         }
     }
@@ -186,7 +190,7 @@ public:
                     symbol = 'x';
                     break;
                 }
-                std::cout << symbol << square->getHeuristic() << " ";
+                std::cout << symbol << square->getHeuristic() + square->getCost() << " ";
             }
             std::cout << '\n';
         }
@@ -195,15 +199,17 @@ public:
     void searchShortestPath(int startX, int startY, int endX, int endY)
     {
         board[startX][startY] = std::shared_ptr<Square>( new Square{ startX, startY, 0, 0, SquareState::TRAVERSABLE });
-        board[endX][endY] = std::shared_ptr<Square>(new Square{ endX, endY, 0, 0,  SquareState::TRAVERSABLE });
-        board[2][1] = std::shared_ptr<Square>(new Square{ 2, 1, 0, 0,  SquareState::UNTRAVERSABLE });
-        board[2][2] = std::shared_ptr<Square>(new Square{ 2, 2, 0, 0,  SquareState::UNTRAVERSABLE });
-        board[1][2] = std::shared_ptr<Square>(new Square{ 2, 2, 0, 0,  SquareState::UNTRAVERSABLE });
+        board[endX][endY] = std::shared_ptr<Square>(new Square{ endX, endY, sizeX + sizeY, sizeX + sizeY,  SquareState::TRAVERSABLE });
+        board[2][1] = std::shared_ptr<Square>(new Square{ 2, 1, sizeX + sizeY, sizeX + sizeY,  SquareState::UNTRAVERSABLE });
+        board[2][2] = std::shared_ptr<Square>(new Square{ 2, 2, sizeX + sizeY, sizeX + sizeY,  SquareState::UNTRAVERSABLE });
+        board[1][2] = std::shared_ptr<Square>(new Square{ 2, 2, sizeX + sizeY, sizeX + sizeY,  SquareState::UNTRAVERSABLE });
         std::shared_ptr<Square> cursor = board[startX][startY];
         std::vector<std::shared_ptr<Square>> squareCalculed;
+        std::vector<std::shared_ptr<Square>> squareVisited;
 
         while(cursor->getX() != board[endX][endY]->getX() || cursor->getY() != board[endX][endY]->getY())
         {
+            std::cout << "cursor" << cursor->getX() << cursor->getY() << std::endl;
             /*Calcul des heuristiques des noeuds voisins*/
             for (int i = -1; i < 2; i = i++)
             {
@@ -213,18 +219,30 @@ public:
                     {
                         std::shared_ptr<Square> target = board[cursor->getX() + i][cursor->getY() + j];
                         //std::cout << calculHeuristic(cursor, target, board[endX][endY]) << std::endl;
-                        target->setHeuristic(calculHeuristic(cursor, target, board[endX][endY]));
                         if (target->getState() != SquareState::UNTRAVERSABLE && (i != 0 || j != 0))
                         {
+                            int newCost = calculCost(cursor, target, board[endX][endY]);
+                            if (newCost + cursor->getHeuristic() + 1 < target->getCost()) {
+                                target->setCost(cursor->getCost() + newCost);
+                                target->setHeuristic(cursor->getHeuristic() + 1);
+                            }
                             bool isAlreadyPresent = false;
-                            for (int i = 0; i < squareCalculed.size(); i++)
+                            bool isAlreadyVisited = false;
+                            for (int x = 0; x < squareCalculed.size(); x++)
                             {
-                                if (target == squareCalculed[i])
+                                if (target == squareCalculed[x])
                                 {
                                     isAlreadyPresent = true;
                                 }
                             }
-                            if (!isAlreadyPresent)
+                            for (int y = 0; y < squareVisited.size(); y++)
+                            {
+                                if (target == squareVisited[y])
+                                {
+                                    isAlreadyVisited = true;
+                                }
+                            }
+                            if (!isAlreadyPresent && !isAlreadyVisited)
                             {
                                 squareCalculed.push_back(target);
                             }
@@ -238,16 +256,16 @@ public:
                 std::cout << squareCalculed[i]->getX() << ',' << squareCalculed[i]->getY() << '\n' << std::endl;
             }
 
-
             /*Recherche des noeuds visités avec le cout le plus faible*/
-            std::shared_ptr<Square> futureNode;
-            int lowestCost = squareCalculed[0]->getHeuristic();
+            std::shared_ptr<Square> futureNode = squareCalculed[0];
+            int lowestGlobalCost = squareCalculed[0]->getCost() + squareCalculed[0]->getHeuristic();
+
             for (int i = 0; i < squareCalculed.size(); i++)
             {
-                if (squareCalculed[i]->getHeuristic() < lowestCost)
+                if (squareCalculed[i]->getCost() + squareCalculed[i]->getHeuristic() < lowestGlobalCost)
                 {
                     futureNode = squareCalculed[i];
-                    lowestCost = squareCalculed[i]->getHeuristic();
+                    lowestGlobalCost = squareCalculed[i]->getCost() + squareCalculed[i]->getHeuristic();
                 }
             }
 
@@ -270,12 +288,13 @@ public:
             }*/
 
             /*Déplacement vers le noeud avec le cout le plus faible*/
+            squareVisited.push_back(cursor);
             cursor = futureNode;
             for (int i = 0; i < squareCalculed.size(); i++)
             {
                 if (cursor == squareCalculed[i])
                 {
-                    squareCalculed.erase(squareCalculed.begin()+1);
+                    squareCalculed.erase(squareCalculed.begin()+i);
                 }
             }
             //Trouver l'index d'un noeud
@@ -290,24 +309,27 @@ public:
     * Si s1 est plus près que s2 -> 0
     * Si s1 est plus près que s2 -> 1
     */
-    int calculHeuristic(std::shared_ptr<Square> s1, std::shared_ptr<Square> s2, std::shared_ptr<Square> dest)
+    int calculCost(std::shared_ptr<Square> s1, std::shared_ptr<Square> s2, std::shared_ptr<Square> dest)
     {
-        //std::cout << dest->getX() - s1->getX() << ' ' << dest->getX() - s2->getX() << ' ' << dest->getY() - s1->getY() << ' ' << dest->getY() - s2->getY() << "\n" << std::endl;
-        if ((dest->getX() - s1->getX() < dest->getX() - s2->getX()) && (dest->getY() - s1->getY() < dest->getY() - s2->getY()))
+        int diffS1X = abs(dest->getX() - s1->getX());
+        int diffS2X = abs(dest->getX() - s2->getX());
+        int diffS1Y = abs(dest->getY() - s1->getY());
+        int diffS2Y = abs(dest->getY() - s2->getY());
+        if (diffS1X < diffS2X && diffS1Y < diffS2Y)
         {
-            return 2;
+            return 3;
         }
-        else if ((dest->getX() - s1->getX() < dest->getX() - s2->getX()) || (dest->getY() - s1->getY() < dest->getY() - s2->getY()))
+        else if (diffS1X < diffS2X && diffS1Y == diffS2Y || diffS1X == diffS2X  && diffS1Y < diffS2Y)
         {
             return 1;
         }
-        else if ((dest->getX() - s1->getX() == dest->getX() - s2->getX()) && (dest->getY() - s1->getY() == dest->getY() - s2->getY()))
+        else if (diffS1X > diffS2X && diffS1Y < diffS2Y || diffS1X < diffS2X && diffS1Y > diffS2Y)
         {
             return 0;
         }
-        else if((dest->getX() - s1->getX() > dest->getX() - s2->getX()) && (dest->getY() - s1->getY() > dest->getY() - s2->getY()))
+        else if (diffS1X > diffS2X && diffS1Y > diffS2Y)
         {
-            return -2;
+            return -3;
         }
         else
         {
@@ -366,7 +388,7 @@ private:
 
 int main()
 {
-    std::shared_ptr<Board> board = std::shared_ptr<Board>(new Board(8, 8));
+    std::shared_ptr<Board> board = std::shared_ptr<Board>(new Board(5, 5));
     board->printChessboard();
     board->searchShortestPath(1, 1, 4, 4);
 }
