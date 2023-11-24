@@ -48,11 +48,11 @@ public:
     {
         heuristic = _heuristic;
     }
-    int getCost()
+    float getCost()
     {
         return cost;
     }
-    void setCost(int _cost)
+    void setCost(float _cost)
     {
         cost = _cost;
     }
@@ -63,8 +63,8 @@ public:
 private:
     int x;
     int y;
-    int cost;
-    int heuristic;
+    float cost;
+    float heuristic;
     bool isVisited;
     SquareState state;
 };
@@ -190,7 +190,7 @@ public:
                     symbol = 'x';
                     break;
                 }
-                std::cout << symbol << square->getHeuristic() + square->getCost() << " ";
+                printf("%c  %.2f \t",symbol, square->getHeuristic() + square->getCost());
             }
             std::cout << '\n';
         }
@@ -221,7 +221,7 @@ public:
                         //std::cout << calculHeuristic(cursor, target, board[endX][endY]) << std::endl;
                         if (target->getState() != SquareState::UNTRAVERSABLE && (i != 0 || j != 0))
                         {
-                            int newCost = calculCost(cursor, target, board[endX][endY]);
+                            float newCost = calculCost(cursor, target, board[endX][endY]);
                             if (newCost + cursor->getHeuristic() + 1 < target->getCost()) {
                                 target->setCost(cursor->getCost() + newCost);
                                 target->setHeuristic(cursor->getHeuristic() + 1);
@@ -309,7 +309,7 @@ public:
     * Si s1 est plus près que s2 -> 0
     * Si s1 est plus près que s2 -> 1
     */
-    int calculCost(std::shared_ptr<Square> s1, std::shared_ptr<Square> s2, std::shared_ptr<Square> dest)
+    float calculCost(std::shared_ptr<Square> s1, std::shared_ptr<Square> s2, std::shared_ptr<Square> dest)
     {
         int diffS1X = abs(dest->getX() - s1->getX());
         int diffS2X = abs(dest->getX() - s2->getX());
@@ -317,23 +317,23 @@ public:
         int diffS2Y = abs(dest->getY() - s2->getY());
         if (diffS1X < diffS2X && diffS1Y < diffS2Y)
         {
-            return 3;
+            return (float)sqrt(2);
         }
         else if (diffS1X < diffS2X && diffS1Y == diffS2Y || diffS1X == diffS2X  && diffS1Y < diffS2Y)
         {
-            return 1;
+            return 1.0f;
         }
         else if (diffS1X > diffS2X && diffS1Y < diffS2Y || diffS1X < diffS2X && diffS1Y > diffS2Y)
         {
-            return 0;
+            return 0.0f;
         }
         else if (diffS1X > diffS2X && diffS1Y > diffS2Y)
         {
-            return -3;
+            return (float)-sqrt(2);
         }
         else
         {
-            return -1;
+            return -1.0;
         }
     }
 
