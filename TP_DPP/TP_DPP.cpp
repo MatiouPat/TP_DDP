@@ -1,5 +1,6 @@
 #include <iostream>
 #include <deque>
+#include <vector>
 
 enum SquareState
 {
@@ -60,6 +61,7 @@ private:
     int y;
     int cost;
     int heuristic;
+    bool isVisited;
     SquareState state;
 };
 
@@ -196,8 +198,9 @@ public:
         board[endX][endY] = std::shared_ptr<Square>(new Square{ endX, endY, 0, 0,  SquareState::TRAVERSABLE });
         board[2][1] = std::shared_ptr<Square>(new Square{ 2, 1, 0, 0,  SquareState::UNTRAVERSABLE });
         board[2][2] = std::shared_ptr<Square>(new Square{ 2, 2, 0, 0,  SquareState::UNTRAVERSABLE });
+        board[1][2] = std::shared_ptr<Square>(new Square{ 2, 2, 0, 0,  SquareState::UNTRAVERSABLE });
         std::shared_ptr<Square> cursor = board[startX][startY];
-
+        std::vector<std::shared_ptr<Square>> squareCalculed;
 
         while(cursor->getX() != board[endX][endY]->getX() || cursor->getY() != board[endX][endY]->getY())
         {
@@ -206,17 +209,50 @@ public:
             {
                 for (int j = -1; j < 2; j = j++)
                 {
-                    if (cursor->getX() + i < sizeX && cursor->getY() + j < sizeY)
+                    if (cursor->getX() + i >= 0 && cursor->getX() + i < sizeX && cursor->getY() + j >= 0 && cursor->getY() + j < sizeY)
                     {
                         std::shared_ptr<Square> target = board[cursor->getX() + i][cursor->getY() + j];
                         //std::cout << calculHeuristic(cursor, target, board[endX][endY]) << std::endl;
                         target->setHeuristic(calculHeuristic(cursor, target, board[endX][endY]));
+                        if (target->getState() != SquareState::UNTRAVERSABLE && (i != 0 || j != 0))
+                        {
+                            bool isAlreadyPresent = false;
+                            for (int i = 0; i < squareCalculed.size(); i++)
+                            {
+                                if (target == squareCalculed[i])
+                                {
+                                    isAlreadyPresent = true;
+                                }
+                            }
+                            if (!isAlreadyPresent)
+                            {
+                                squareCalculed.push_back(target);
+                            }
+                        }
                     }
                 }
             }
 
+            for (int i = 0; i < squareCalculed.size(); i++)
+            {
+                std::cout << squareCalculed[i]->getX() << ',' << squareCalculed[i]->getY() << '\n' << std::endl;
+            }
+
+
+            /*Recherche des noeuds visités avec le cout le plus faible*/
+            std::shared_ptr<Square> futureNode;
+            int lowestCost = squareCalculed[0]->getHeuristic();
+            for (int i = 0; i < squareCalculed.size(); i++)
+            {
+                if (squareCalculed[i]->getHeuristic() < lowestCost)
+                {
+                    futureNode = squareCalculed[i];
+                    lowestCost = squareCalculed[i]->getHeuristic();
+                }
+            }
+
             /*Recherche du noeud voisin avec le cout le plus faible*/
-            int localCost = cursor->getHeuristic();
+            /*int localCost = cursor->getHeuristic();
             std::shared_ptr<Square> futureNode = cursor;
             for (int i = -1; i < 2; i = i++)
             {
@@ -231,9 +267,21 @@ public:
                         }
                     }
                 }
-            }
+            }*/
+
             /*Déplacement vers le noeud avec le cout le plus faible*/
             cursor = futureNode;
+            for (int i = 0; i < squareCalculed.size(); i++)
+            {
+                if (cursor == squareCalculed[i])
+                {
+                    squareCalculed.erase(squareCalculed.begin()+1);
+                }
+            }
+            //Trouver l'index d'un noeud
+
+            //Supprimer 
+            printChessboard();
         }
     }
     /*
@@ -265,6 +313,11 @@ public:
         {
             return -1;
         }
+    }
+
+    std::shared_ptr<Square> noeudLePlusFaible(std::shared_ptr<std::deque<std::shared_ptr<Square>>>)
+    {
+
     }
 
     std::shared_ptr<std::deque<std::shared_ptr<Square>>> neighbours(int squareX, int squareY)
@@ -313,7 +366,7 @@ private:
 
 int main()
 {
-    std::shared_ptr<Board> board = std::shared_ptr<Board>(new Board(5, 5));
+    std::shared_ptr<Board> board = std::shared_ptr<Board>(new Board(8, 8));
     board->printChessboard();
     board->searchShortestPath(1, 1, 4, 4);
 }
