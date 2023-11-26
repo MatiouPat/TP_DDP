@@ -1,6 +1,9 @@
 #include <iostream>
 #include <deque>
 #include <vector>
+#include <fstream>
+#include <cmath>
+#include <algorithm>
 
 enum SquareState
 {
@@ -488,8 +491,176 @@ private:
     std::deque<std::deque<std::shared_ptr<Square>>> board;
 };
 
+// Fonction pour interpoler linéairement entre deux valeurs
+float lerp(float a, float b, float t) {
+    return a + t * (b - a);
+}
+
+// Déclaration de la fonction grad
+float grad(int hash, float x, float y);
+
+// Fonction pour générer un bruit de Perlin 1D
+float perlinNoise1D(int x) {
+    int n = x * 57;
+    n = (n << 13) ^ n;
+    return static_cast<float>((1.0 - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0));
+}
+
+// Fonction pour interpoler le bruit de Perlin
+float fade(float t) {
+    return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+// Fonction pour générer le bruit de Perlin 2D
+float perlinNoise2D(float x, float y) {
+    int X = static_cast<int>(std::floor(x)) & 255;
+    int Y = static_cast<int>(std::floor(y)) & 255;
+
+    x -= std::floor(x);
+    y -= std::floor(y);
+
+    float u = fade(x);
+    float v = fade(y);
+
+    int p[512]; // Tableau de permutation
+    for (int i = 0; i < 512; ++i) {
+        p[i] = i;
+    }
+
+    // Mélanger la table de permutation
+    for (int i = 0; i < 512; ++i) {
+        int j = i + perlinNoise1D(i) * 255;
+        j = j & 255; // Assurez-vous que j reste dans les limites de 0 à 255
+        std::swap(p[i], p[j]);
+    }
+
+    int A = p[X] + Y;
+    int B = p[X + 1] + Y;
+
+    return lerp(lerp(grad(p[A], x, y), grad(p[B], x - 1, y), u),
+        lerp(grad(p[A + 1], x, y - 1), grad(p[B + 1], x - 1, y - 1), u), v);
+}
+
+// Fonction pour calculer le gradient
+float grad(int hash, float x, float y) {
+    int h = hash & 15;
+    float grad = 1 + (h & 7); // Gradient value 1-8
+    if (h & 8) grad = -grad; // Randomly invert half of them
+    return (grad * x); // Gradient value times x distance
+}
+
+// Fonction pour générer une carte avec du bruit de Perlin
+std::vector<std::vector<float>> genererCarte(int largeur, int hauteur, float frequence) {
+    std::vector<std::vector<float>> carte(largeur, std::vector<float>(hauteur));
+
+    for (int x = 0; x < largeur; ++x) {
+        for (int y = 0; y < hauteur; ++y) {
+            carte[x][y] = perlinNoise2D(x * frequence, y * frequence);
+        }
+    }
+
+    return carte;
+}
+
+// Fonction pour exporter la carte vers un fichier
+void exporterCarte(const std::vector<std::vector<float>>& carte, const std::string& nomFichier) {
+    std::ofstream fichier(nomFichier);
+
+    if (fichier.is_open()) {
+        for (const auto& ligne : carte) {
+            for (float valeur : ligne) {
+                fichier << valeur << " ";
+            }
+            fichier << std::endl;
+        }
+
+        std::cout << "Carte exportée avec succès vers : " << nomFichier << std::endl;
+    }
+    else {
+        std::cerr << "Erreur lors de l'exportation du fichier." << std::endl;
+    }
+}
+
+// Fonction pour importer la carte depuis un fichier
+std::vector<std::vector<float>> importerCarte(const std::string& nomFichier) {
+    std::vector<std::vector<float>> carte;
+    std::ifstream fichier(nomFichier);
+
+    if (fichier.is_open()) {
+        float valeur;
+        std::vector<float> ligne;
+
+        while (fichier >> valeur) {
+            ligne.push_back(valeur);
+        }
+
+        // Ajouter la ligne à la carte
+        carte.push_back(ligne);
+
+        std::cout << "Carte importée avec succès depuis : " << nomFichier << std::endl;
+    }
+    else {
+        std::cerr << "Erreur lors de l'importation du fichier." << std::endl;
+    }
+
+    return carte;
+}
+
+// Fonction pour afficher la carte
+void afficherCarte(const std::vector<std::vector<float>>& carte) {
+    for (const auto& ligne : carte) {
+        for (float valeur : ligne) {
+            char character = ' ';
+
+            // Utiliser différents caractères pour représenter les hauteurs
+            if (valeur < -0.8) {
+                character = '#';  // Caractère plein pour les basses altitudes
+            }
+            else if (valeur < -0.6) {
+                character = '▓';
+            }
+            else if (valeur < -0.4) {
+                character = '▒';
+            }
+            else if (valeur < -0.2) {
+                character = '░';
+            }
+            else if (valeur < 0.2) {
+                character = '.';
+            }
+            else if (valeur < 0.4) {
+                character = ':';
+            }
+            else if (valeur < 0.6) {
+                character = 'o';
+            }
+            else if (valeur < 0.8) {
+                character = 'O';
+            }
+            else {
+                character = '#';  // Caractère plein pour les hautes altitudes
+            }
+
+            std::cout << character << ' ';
+        }
+        std::cout << std::endl;
+    }
+}
+
+
 int main()
 {
+    const int largeur = 40;
+    const int hauteur = 20;
+    const float frequence = 0.1f;
+
+    std::cout << "Choisissez une option : " << std::endl;
+    std::cout << "1. Générer une nouvelle carte" << std::endl;
+    std::cout << "2. Importer une carte depuis un fichier" << std::endl;
+
+    int choix;
+    std::cin >> choix;
+
     std::shared_ptr<Board> board = std::shared_ptr<Board>(new Board(10, 10));
     board->addChessboardCase(SOUTH_EAST);
     board->printChessboard();
@@ -504,5 +675,31 @@ int main()
         std::cout << "  ( " << i->getX() << " , " << i->getY() << " ) \n";
     }
     std::cout << " \n" << std::endl;
+
+    if (choix == 1) {
+        // Générer une nouvelle carte avec du bruit de Perlin
+        std::vector<std::vector<float>> carte = genererCarte(largeur, hauteur, frequence);
+
+        // Afficher la carte générée
+        std::cout << "Carte générée :" << std::endl;
+        afficherCarte(carte);
+
+        // Exporter la carte vers un fichier
+        exporterCarte(carte, "carte.txt");
+    }
+    else if (choix == 2) {
+        // Importer une carte depuis un fichier
+        std::vector<std::vector<float>> carteImportee = importerCarte("carte.txt");
+
+        // Afficher la carte importée
+        std::cout << "Carte importée :" << std::endl;
+        afficherCarte(carteImportee);
+    }
+    else {
+        std::cerr << "Option non valide." << std::endl;
+        return 1;
+    }
+
+    return 0;
 
 }
